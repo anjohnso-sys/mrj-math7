@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Function Vending Machine — Mr. J's Math 7</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #f1f5f9; min-height: 100vh; }
+
+    header { background: linear-gradient(135deg, #1e293b, #334155); padding: 22px 24px; text-align: center; border-bottom: 3px solid #3b82f6; }
+    header h1 { font-size: 1.7rem; font-weight: 800; color: #f1f5f9; }
+    header h1 span { color: #60a5fa; }
+    header p { color: #94a3b8; font-size: 0.9rem; margin-top: 5px; }
+
+    .layout { display: grid; grid-template-columns: 360px 1fr; gap: 24px; max-width: 920px; margin: 24px auto; padding: 0 20px; align-items: start; }
+    @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ── MACHINE ── */
+    .machine-frame { background: linear-gradient(160deg, #c8d0dc 0%, #9aa5b4 100%); border-radius: 20px; padding: 14px; border: 5px solid #6b7a8d; box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.3); }
+    .machine-frame.shaking { animation: shake 0.5s ease; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 15%{transform:translateX(-7px) rotate(-0.8deg)} 30%{transform:translateX(7px) rotate(0.8deg)} 45%{transform:translateX(-5px)} 60%{transform:translateX(5px)} 75%{transform:translateX(-3px)} }
+
+    .machine-brand { background: #0f172a; border-radius: 8px; padding: 8px 12px; text-align: center; font-size: 1rem; font-weight: 800; letter-spacing: 3px; color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,0.5); margin-bottom: 12px; }
+
+    .machine-glass { background: rgba(147,197,253,0.08); border: 2px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .machine-row { display: flex; gap: 8px; }
+
+    .slot-item { flex: 1; background: rgba(15,23,42,0.65); border: 2px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 78px; justify-content: center; position: relative; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s; }
+    .slot-item .s-emoji { font-size: 1.85rem; line-height: 1; }
+    .slot-item .s-id { font-size: 0.68rem; font-weight: 700; color: #fbbf24; background: rgba(0,0,0,0.55); border-radius: 4px; padding: 1px 6px; }
+    .slot-item .s-name { font-size: 0.62rem; color: #94a3b8; }
+
+    .slot-item.active { border-color: #22c55e; background: rgba(34,197,94,0.15); box-shadow: 0 0 12px rgba(34,197,94,0.35); }
+    .slot-item.active-broken { border-color: #ef4444; background: rgba(239,68,68,0.15); box-shadow: 0 0 16px rgba(239,68,68,0.5); }
+    .slot-item.revealed { border-color: #ef4444; background: rgba(239,68,68,0.12); }
+    .slot-item.revealed .s-id { color: #ef4444; }
+
+    .dup-badge { position: absolute; top: -7px; right: -7px; background: #ef4444; color: #fff; font-size: 0.55rem; font-weight: 800; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
+
+    /* ── KEYPAD ── */
+    .keypad-section { background: #0f172a; border: 2px solid #334155; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+    .keypad-display { background: #0a1f10; border: 2px solid #22c55e; border-radius: 8px; padding: 8px 14px; font-size: 1.5rem; font-weight: 800; font-family: 'Courier New', monospace; color: #4ade80; text-align: center; letter-spacing: 8px; text-shadow: 0 0 8px rgba(74,222,128,0.5); margin-bottom: 10px; min-height: 52px; display: flex; align-items: center; justify-content: center; }
+    .keypad-display.error   { background: #1f0a0a; border-color: #ef4444; color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.5); }
+    .keypad-display.invalid { background: #1a1400; border-color: #f59e0b; color: #fbbf24; text-shadow: 0 0 8px rgba(251,191,36,0.5); }
+    .keypad-display.locked  { background: #0f1a2e; border-color: #475569; color: #475569; text-shadow: none; }
+    .keypad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    .key-btn { background: #1e293b; border: 2px solid #334155; border-radius: 8px; color: #f1f5f9; font-size: 1.05rem; font-weight: 700; padding: 10px; cursor: pointer; transition: all 0.12s; font-family: inherit; }
+    .key-btn:hover { background: #2d3f52; border-color: #60a5fa; color: #60a5fa; }
+    .key-btn:active { transform: scale(0.91); }
+    .key-btn.letter { border-color: #3b82f6; color: #93c5fd; }
+    .key-btn.letter:hover { background: rgba(59,130,246,0.25); color: #60a5fa; }
+    .key-clr { background: #1e293b; border: 2px solid #475569; border-radius: 8px; color: #94a3b8; font-size: 0.82rem; font-weight: 700; padding: 10px; cursor: pointer; transition: all 0.2s; font-family: inherit; letter-spacing: 1px; }
+    .key-clr:hover { border-color: #94a3b8; color: #f1f5f9; }
+    .keypad-section.locked .key-btn,
+    .keypad-section.locked .key-clr { opacity: 0.35; pointer-events: none; cursor: default; }
+
+    /* ── TRAY ── */
+    .tray { background: #0f172a; border: 2px solid #334155; border-radius: 10px; min-height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; position: relative; overflow: hidden; transition: border-color 0.3s; }
+    .tray.ok  { border-color: #22c55e; }
+    .tray.err { border-color: #ef4444; }
+    .tray.inv { border-color: #f59e0b; }
+    .tray-slit { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 60%; height: 8px; background: #6b7a8d; border-radius: 0 0 6px 6px; }
+    .tray-emoji { font-size: 2.3rem; animation: drop 0.45s cubic-bezier(0.34,1.56,0.64,1); }
+    @keyframes drop { from{transform:translateY(-50px);opacity:0} to{transform:translateY(0);opacity:1} }
+    .tray-main { font-size: 0.82rem; font-weight: 600; color: #e2e8f0; }
+    .tray-sub  { font-size: 0.72rem; color: #60a5fa; font-family: monospace; }
+    .tray-idle { font-size: 0.8rem; color: #475569; }
+    .tray-err  { font-size: 0.8rem; color: #ef4444; font-weight: 600; text-align: center; padding: 0 12px; }
+    .spark { font-size: 1.5rem; animation: sparkanim 0.3s ease infinite alternate; }
+    @keyframes sparkanim { from{transform:scale(1)} to{transform:scale(1.3) rotate(20deg)} }
+    .tray-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 1.5px; color: #0f172a; background: #6b7a8d; text-align: center; border-radius: 0 0 6px 6px; padding: 3px; margin-top: 6px; }
+
+    /* ── NEW MACHINE BUTTON ── */
+    .new-machine-btn { width: 100%; margin-top: 10px; padding: 12px; border-radius: 10px; border: none; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; letter-spacing: 0.3px; }
+    .new-machine-btn:hover { background: linear-gradient(135deg, #1d4ed8, #2563eb); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(59,130,246,0.4); }
+    .new-machine-btn:active { transform: translateY(0); }
+    .new-machine-btn.prominent { animation: pulse-btn 1.4s ease-in-out infinite; }
+    @keyframes pulse-btn { 0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,0.5)} 50%{box-shadow:0 0 0 10px rgba(59,130,246,0)} }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel { display: flex; flex-direction: column; gap: 16px; }
+    .card { background: #1e293b; border-radius: 14px; padding: 16px; border: 1px solid #334155; }
+    .card-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #475569; margin-bottom: 12px; }
+
+    /* ── VERDICT CARD ── */
+    .tested-bar { margin-bottom: 12px; }
+    .tested-text { font-size: 0.78rem; color: #64748b; display: block; margin-bottom: 5px; }
+    .tested-track { background: #0f172a; border-radius: 99px; height: 6px; overflow: hidden; }
+    .tested-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+    .verdict-prompt { font-size: 0.85rem; color: #94a3b8; margin-bottom: 10px; }
+    .verdict-btns { display: flex; gap: 8px; }
+    .v-btn { flex: 1; padding: 12px 8px; border-radius: 10px; border: 2px solid transparent; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.18s; font-family: inherit; line-height: 1.4; text-align: center; }
+    .v-btn small { font-weight: 400; font-size: 0.72rem; display: block; opacity: 0.8; }
+    .v-work  { background: rgba(34,197,94,0.1);  border-color: #22c55e; color: #22c55e; }
+    .v-break { background: rgba(239,68,68,0.1);  border-color: #ef4444; color: #ef4444; }
+    .v-work:hover  { background: rgba(34,197,94,0.22); }
+    .v-break:hover { background: rgba(239,68,68,0.22); }
+
+    .verdict-result { border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .verdict-result.correct { background: rgba(34,197,94,0.12); border: 2px solid #22c55e; }
+    .verdict-result.wrong   { background: rgba(239,68,68,0.12); border: 2px solid #ef4444; }
+    .vr-icon  { font-size: 1.8rem; flex-shrink: 0; }
+    .vr-title { font-size: 1rem; font-weight: 700; }
+    .verdict-result.correct .vr-title { color: #22c55e; }
+    .verdict-result.wrong   .vr-title { color: #ef4444; }
+    .vr-sub   { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+    .vr-expl  { font-size: 0.83rem; line-height: 1.6; color: #cbd5e1; }
+    .vr-expl strong { color: #f1f5f9; }
+    .vr-reveal { font-size: 0.78rem; color: #ef4444; margin-top: 8px; font-style: italic; }
+
+    /* ── DIAGRAM + LOG ── */
+    #diagramSvg { display: block; width: 100%; overflow: visible; }
+    .log-list  { display: flex; flex-direction: column; gap: 5px; font-size: 0.82rem; }
+    .log-ok    { color: #cbd5e1; }
+    .log-err   { color: #ef4444; }
+    .log-empty { color: #475569; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏪 The <span>Function</span> Vending Machine</h1>
+  <p>Test the machine with the keypad, then decide — is it a function?</p>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT: Machine -->
+  <div>
+    <div class="machine-frame" id="machineFrame">
+      <div class="machine-brand">⭐ SNACK CO. ⭐</div>
+      <div class="machine-glass" id="machineGlass"></div>
+      <div class="keypad-section" id="keypadSection">
+        <div class="keypad-display" id="kDisplay">_ _</div>
+        <div class="keypad-grid">
+          <button class="key-btn letter" onclick="pressKey('A')">A</button>
+          <button class="key-btn letter" onclick="pressKey('B')">B</button>
+          <button class="key-btn letter" onclick="pressKey('C')">C</button>
+          <button class="key-btn letter" onclick="pressKey('D')">D</button>
+          <button class="key-btn number" onclick="pressKey('1')">1</button>
+          <button class="key-btn number" onclick="pressKey('2')">2</button>
+          <button class="key-btn number" onclick="pressKey('3')">3</button>
+          <button class="key-clr" onclick="pressClear()">✕ CLR</button>
+        </div>
+      </div>
+      <div class="tray" id="tray">
+        <div class="tray-slit"></div>
+        <div class="tray-idle">Enter a code above</div>
+      </div>
+      <div class="tray-label">DISPENSING TRAY</div>
+    </div>
+    <button class="new-machine-btn" id="newMachineBtn" onclick="startNewMachine()">🎲 New Machine</button>
+  </div>
+
+  <!-- RIGHT: Verdict + Diagram + Log -->
+  <div class="right-panel">
+
+    <div class="card">
+      <div class="card-label">Your Verdict</div>
+      <div id="verdictContent"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Mapping Diagram</div>
+      <svg id="diagramSvg" height="380"></svg>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Input → Output Log</div>
+      <div class="log-list" id="logList"><div class="log-empty">No codes entered yet.</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── DATA ─────────────────────────────────────────
+  const SNACKS = [
+    { key:'chips',     emoji:'🍟', name:'Chips'     },
+    { key:'soda',      emoji:'🥤', name:'Soda'      },
+    { key:'chocolate', emoji:'🍫', name:'Chocolate' },
+    { key:'cookie',    emoji:'🍪', name:'Cookie'    },
+    { key:'candy',     emoji:'🍬', name:'Candy'     },
+    { key:'donut',     emoji:'🍩', name:'Donut'     },
+  ];
+  const byKey   = Object.fromEntries(SNACKS.map(s => [s.key, s]));
+  const LETTERS = ['A','B','C','D'];
+  const NUMBERS = ['1','2','3'];
+
+  // ── STATE ─────────────────────────────────────────
+  let machine        = null; // { rows, isBroken, brokenCodes, codeMap }
+  let pressLog       = [];
+  let keyInput       = '';
+  let guessSubmitted = false;
+  let studentGuess   = null;
+  let hlTimer        = null;
+
+  // ── GENERATION ───────────────────────────────────
+  function shuffleArr(a) {
+    const b = [...a];
+    for (let i = b.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [b[i], b[j]] = [b[j], b[i]];
+    }
+    return b;
+  }
+
+  function generateMachine() {
+    const isBroken  = Math.random() < 0.5;
+    const snackKeys = SNACKS.map(s => s.key);
+
+    // Assign a random snack to every code
+    const codeMap = {};
+    LETTERS.forEach(l => NUMBERS.forEach(n => {
+      codeMap[l + n] = snackKeys[Math.floor(Math.random() * snackKeys.length)];
+    }));
+
+    // Guarantee at least one many-to-one pair so working machines are interesting
+    const allCodes = Object.keys(codeMap);
+    const src = allCodes[Math.floor(Math.random() * allCodes.length)];
+    const dst = allCodes.filter(c => c !== src)[Math.floor(Math.random() * (allCodes.length - 1))];
+    codeMap[dst] = codeMap[src];
+
+    const brokenCodes = {}; // code → [out1, out2]
+
+    if (isBroken) {
+      const numBroken = Math.floor(Math.random() * 3) + 1; // 1–3
+      // One broken code per row max, so pick from unique rows
+      const rowIdxs = shuffleArr([0, 1, 2, 3]).slice(0, numBroken);
+      rowIdxs.forEach(ri => {
+        const letter  = LETTERS[ri];
+        const numIdx  = Math.floor(Math.random() * 3);
+        const code    = letter + NUMBERS[numIdx];
+        const origOut = codeMap[code];
+        const others  = snackKeys.filter(k => k !== origOut);
+        const extraOut = others[Math.floor(Math.random() * others.length)];
+        brokenCodes[code] = [origOut, extraOut];
+      });
+    }
+
+    // Build rows — always exactly 3 slots per row.
+    // If a row has a broken code, that code takes 2 adjacent slots and one
+    // normal code is dropped, keeping the row at 3.
+    const rows = LETTERS.map(letter => {
+      const brokenCode = NUMBERS.map(n => letter + n).find(code => code in brokenCodes);
+
+      if (!brokenCode) {
+        return NUMBERS.map(num => ({ id: letter + num, out: codeMap[letter + num] }));
+      }
+
+      // Drop one of the two remaining normal codes at random
+      const normalCodes = NUMBERS.map(n => letter + n).filter(code => code !== brokenCode);
+      const keepCode    = shuffleArr(normalCodes)[0];
+
+      const [o1, o2] = brokenCodes[brokenCode];
+      const brokenSlots = [
+        { id: brokenCode, out: o1, broken: true },
+        { id: brokenCode, out: o2, broken: true },
+      ];
+      const keepSlot = { id: keepCode, out: codeMap[keepCode] };
+
+      // Preserve natural numeric order so the broken pair sits at its position
+      return parseInt(brokenCode[1]) < parseInt(keepCode[1])
+        ? [...brokenSlots, keepSlot]
+        : [keepSlot, ...brokenSlots];
+    });
+
+    // Any code not represented as a physical slot is outside the domain
+    const represented = new Set(rows.flat().map(s => s.id));
+    const missingCodes = new Set(
+      LETTERS.flatMap(l => NUMBERS.map(n => l + n)).filter(c => !represented.has(c))
+    );
+
+    return { rows, isBroken, brokenCodes, codeMap, missingCodes };
+  }
+
+  // ── START / RESET ─────────────────────────────────
+  function startNewMachine() {
+    machine        = generateMachine();
+    pressLog       = [];
+    keyInput       = '';
+    guessSubmitted = false;
+    studentGuess   = null;
+    setDisplay('_ _', null);
+    clearTray();
+    document.getElementById('keypadSection').classList.remove('locked');
+    document.getElementById('newMachineBtn').classList.remove('prominent');
+    renderMachine();
+    renderDiagram();
+    renderVerdictCard();
+    updateLog();
+  }
+
+  // ── MACHINE RENDER ────────────────────────────────
+  function renderMachine() {
+    const glass = document.getElementById('machineGlass');
+    glass.innerHTML = '';
+    machine.rows.forEach(row => {
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'machine-row';
+      row.forEach(slot => {
+        const snack      = byKey[slot.out];
+        const isRevealed = guessSubmitted && slot.broken;
+        const el         = document.createElement('div');
+        el.className     = 'slot-item' + (isRevealed ? ' revealed' : '');
+        el.dataset.code  = slot.id;
+        el.innerHTML = `
+          <span class="s-emoji">${snack.emoji}</span>
+          <span class="s-id">${slot.id}</span>
+          <span class="s-name">${snack.name}</span>
+          ${isRevealed ? '<span class="dup-badge">!</span>' : ''}`;
+        rowDiv.appendChild(el);
+      });
+      glass.appendChild(rowDiv);
+    });
+  }
+
+  // ── HIGHLIGHT SLOTS ───────────────────────────────
+  function highlightSlots(code, isError) {
+    clearTimeout(hlTimer);
+    document.querySelectorAll('.slot-item').forEach(el => {
+      el.classList.remove('active', 'active-broken');
+      if (el.dataset.code === code)
+        el.classList.add(isError ? 'active-broken' : 'active');
+    });
+    hlTimer = setTimeout(() => {
+      document.querySelectorAll('.slot-item').forEach(el =>
+        el.classList.remove('active', 'active-broken'));
+    }, 1400);
+  }
+
+  // ── KEYPAD ────────────────────────────────────────
+  function pressKey(k) {
+    if (guessSubmitted) return;
+    if ('ABCD'.includes(k)) {
+      keyInput = k;
+      setDisplay(k + ' _', false);
+    } else if ('123'.includes(k) && keyInput) {
+      const code = keyInput + k;
+      keyInput   = '';
+      setDisplay(code, false);
+      setTimeout(() => submitCode(code), 90);
+    }
+  }
+  function pressClear() {
+    if (guessSubmitted) return;
+    keyInput = '';
+    setDisplay('_ _', false);
+  }
+  function setDisplay(text, state) {
+    const d = document.getElementById('kDisplay');
+    d.textContent = text;
+    const cls = state === 'error'   ? ' error'
+              : state === 'invalid' ? ' invalid'
+              : guessSubmitted      ? ' locked'
+              : '';
+    d.className = 'keypad-display' + cls;
+  }
+
+  // ── SUBMIT CODE ───────────────────────────────────
+  function submitCode(code) {
+    if (guessSubmitted) return;
+
+    if (machine.missingCodes.has(code)) {
+      setTrayInvalid(code);
+      setDisplay('INV', 'invalid');
+      setTimeout(() => setDisplay('_ _', false), 1300);
+      return; // not part of the domain — don't log or update diagram
+    }
+
+    const isError = code in machine.brokenCodes;
+
+    if (isError) {
+      pressLog.push({ input: code, output: null, isError: true });
+      highlightSlots(code, true);
+      doShake();
+      setTrayError();
+      setDisplay('ERR', 'error');
+      setTimeout(() => setDisplay('_ _', null), 1300);
+    } else {
+      const out   = machine.codeMap[code];
+      const snack = byKey[out];
+      pressLog.push({ input: code, output: out, isError: false });
+      highlightSlots(code, false);
+      setTrayOk(code, snack);
+      setTimeout(() => setDisplay('_ _', null), 1000);
+    }
+
+    renderDiagram();
+    renderVerdictCard();
+    updateLog();
+  }
+
+  // ── TRAY ─────────────────────────────────────────
+  function setTrayOk(code, snack) {
+    const t = document.getElementById('tray');
+    t.className = 'tray ok';
+    t.innerHTML = `<div class="tray-slit"></div>
+      <div class="tray-emoji">${snack.emoji}</div>
+      <div class="tray-main">${snack.name}</div>
+      <div class="tray-sub">${code}  →  ${snack.name}</div>`;
+  }
+  function setTrayError() {
+    const t = document.getElementById('tray');
+    t.className = 'tray err';
+    t.innerHTML = `<div class="tray-slit"></div>
+      <div class="spark">⚡</div>
+      <div class="tray-err">Machine jammed!<br>Two slots, same code — can't decide.</div>`;
+  }
+  function setTrayInvalid(code) {
+    const t = document.getElementById('tray');
+    t.className = 'tray inv';
+    t.innerHTML = `<div class="tray-slit"></div>
+      <div class="tray-err" style="color:#f59e0b">⚠️ Invalid Input<br>
+      <span style="font-size:0.7rem;color:#78716c">${code} is not on this machine</span></div>`;
+  }
+  function clearTray() {
+    const t = document.getElementById('tray');
+    t.className = 'tray';
+    t.innerHTML = `<div class="tray-slit"></div><div class="tray-idle">Enter a code above</div>`;
+  }
+  function doShake() {
+    const f = document.getElementById('machineFrame');
+    f.classList.remove('shaking');
+    void f.offsetWidth;
+    f.classList.add('shaking');
+    setTimeout(() => f.classList.remove('shaking'), 520);
+  }
+
+  // ── VERDICT ───────────────────────────────────────
+  function submitVerdict(guess) {
+    guessSubmitted = true;
+    studentGuess   = guess;
+    document.getElementById('keypadSection').classList.add('locked');
+    setDisplay('- -', false);
+    renderMachine();   // reveal broken slots
+    renderDiagram();   // fill in any unseen broken arrows
+    renderVerdictCard();
+    updateLog();
+    document.getElementById('newMachineBtn').classList.add('prominent');
+  }
+
+  function renderVerdictCard() {
+    const content = document.getElementById('verdictContent');
+
+    if (!guessSubmitted) {
+      const tested = new Set(pressLog.map(e => e.input)).size;
+      const pct    = Math.round(tested / 12 * 100);
+      content.innerHTML = `
+        <div class="tested-bar">
+          <span class="tested-text">${tested} of 12 codes tested</span>
+          <div class="tested-track"><div class="tested-fill" style="width:${pct}%"></div></div>
+        </div>
+        <p class="verdict-prompt">What's your verdict?</p>
+        <div class="verdict-btns">
+          <button class="v-btn v-work"  onclick="submitVerdict('working')">✅ Working<br><small>This IS a function</small></button>
+          <button class="v-btn v-break" onclick="submitVerdict('broken')">❌ Broken<br><small>Not a function</small></button>
+        </div>`;
+      return;
+    }
+
+    const wasCorrect = (studentGuess === 'broken') === machine.isBroken;
+    const brokenList = Object.keys(machine.brokenCodes);
+    let explanation;
+
+    if (machine.isBroken) {
+      const codeStr = brokenList.map(c => `<strong>${c}</strong>`).join(' and ');
+      if (wasCorrect) {
+        explanation = `${codeStr} ${brokenList.length > 1 ? 'each have' : 'has'} two different physical slots
+          with the same code label. The machine doesn't know which slot to pick —
+          <strong>one input with two possible outputs is enough to make the whole machine fail the function rule.</strong>`;
+      } else {
+        explanation = `This machine actually has a problem with ${codeStr} —
+          ${brokenList.length > 1 ? 'those codes each have' : 'that code has'} two slots with different items.
+          Even though most codes work fine, <strong>one broken input is enough to disqualify the whole machine as a function.</strong>`;
+      }
+    } else {
+      if (wasCorrect) {
+        explanation = `Every one of the 12 codes gives exactly one snack, every time.
+          Notice in the diagram — even when <em>multiple codes point to the same snack</em>,
+          each code individually still has only one arrow. That's many-to-one: <strong>perfectly valid in a function.</strong>`;
+      } else {
+        explanation = `Every code on this machine has exactly one output — no jamming anywhere.
+          Remember: it's fine for multiple codes to give the same snack.
+          <strong>A function only breaks when one input has more than one possible output</strong> — and that didn't happen here.`;
+      }
+    }
+
+    const revealNote = machine.isBroken
+      ? `<p class="vr-reveal">↑ Broken slot${brokenList.length > 1 ? 's are' : ' is'} now highlighted in the machine above.</p>`
+      : '';
+
+    content.innerHTML = `
+      <div class="verdict-result ${wasCorrect ? 'correct' : 'wrong'}">
+        <span class="vr-icon">${wasCorrect ? '✅' : '❌'}</span>
+        <div>
+          <div class="vr-title">${wasCorrect ? 'Correct!' : 'Not quite!'}</div>
+          <div class="vr-sub">This ${machine.isBroken ? 'is NOT' : 'IS'} a function</div>
+        </div>
+      </div>
+      <p class="vr-expl">${explanation}</p>
+      ${revealNote}`;
+  }
+
+  // ── DIAGRAM ───────────────────────────────────────
+  function renderDiagram() {
+    const svg      = document.getElementById('diagramSvg');
+    const inputIds = [];
+    LETTERS.forEach(l => NUMBERS.forEach(n => inputIds.push(l + n)));
+
+    // Only show snacks that actually appear in this machine
+    const usedKeys = new Set(Object.values(machine.codeMap));
+    Object.values(machine.brokenCodes).forEach(([o1, o2]) => { usedKeys.add(o1); usedKeys.add(o2); });
+    const outputs = SNACKS.filter(s => usedKeys.has(s.key));
+
+    const ROW_H  = 30;
+    const IN_H   = inputIds.length * ROW_H;
+    const OUT_H  = outputs.length * ROW_H;
+    const PAD    = 12;
+    const H      = Math.max(IN_H, OUT_H) + PAD * 2;
+    const IN_X   = 52;
+    const OUT_X  = 248;
+    const outPad = PAD + (Math.max(IN_H, OUT_H) - OUT_H) / 2;
+
+    svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 300 ${H}`);
+
+    const hitIn  = new Set(pressLog.map(e => e.input));
+    const hitOut = new Set(pressLog.filter(e => !e.isError).map(e => e.output));
+    const errIn  = new Set(pressLog.filter(e => e.isError).map(e => e.input));
+
+    const inY  = i => PAD + (i + 0.5) * ROW_H;
+    const outY = j => outPad + (j + 0.5) * ROW_H;
+
+    let html = `
+      <text x="${IN_X}"  y="7" text-anchor="middle" font-size="9" font-weight="700" fill="#334155" letter-spacing="1" font-family="system-ui,sans-serif">INPUT</text>
+      <text x="${OUT_X}" y="7" text-anchor="middle" font-size="9" font-weight="700" fill="#334155" letter-spacing="1" font-family="system-ui,sans-serif">OUTPUT</text>`;
+
+    // Deduplicate arrows
+    const drawn = new Set();
+
+    function maybeArrow(code, outKey, color, dashed) {
+      const k = `${code}→${outKey}`;
+      if (drawn.has(k)) return;
+      drawn.add(k);
+      const i = inputIds.indexOf(code);
+      const j = outputs.findIndex(s => s.key === outKey);
+      if (i < 0 || j < 0) return;
+      html += arrow(IN_X, inY(i), OUT_X, outY(j), color, dashed);
+    }
+
+    // Arrows from press log
+    pressLog.forEach(e => {
+      if (e.isError) {
+        (machine.brokenCodes[e.input] || []).forEach(k => maybeArrow(e.input, k, '#ef4444', true));
+      } else {
+        maybeArrow(e.input, e.output, '#3b82f6', false);
+      }
+    });
+
+    // After guess: reveal any undiscovered broken arrows
+    if (guessSubmitted && machine.isBroken) {
+      Object.entries(machine.brokenCodes).forEach(([code, [o1, o2]]) => {
+        maybeArrow(code, o1, '#ef4444', true);
+        maybeArrow(code, o2, '#ef4444', true);
+      });
+    }
+
+    // Input nodes
+    inputIds.forEach((id, i) => {
+      const y    = inY(i);
+      const isE  = errIn.has(id) || (guessSubmitted && id in machine.brokenCodes);
+      const isH  = hitIn.has(id) && !isE;
+      const c    = isE ? '#ef4444' : isH ? '#22c55e' : '#475569';
+      const tc   = isE ? '#ef4444' : isH ? '#22c55e' : '#64748b';
+      html += `
+        <text x="${IN_X - 10}" y="${y + 4}" text-anchor="end" font-size="11" font-weight="700" fill="${tc}" font-family="system-ui,sans-serif">${id}</text>
+        <circle cx="${IN_X}" cy="${y}" r="5" fill="${c}"/>`;
+    });
+
+    // Output nodes
+    outputs.forEach((snack, j) => {
+      const y     = outY(j);
+      const isEO  = [...errIn].some(code => (machine.brokenCodes[code] || []).includes(snack.key))
+                 || (guessSubmitted && Object.values(machine.brokenCodes).some(([o1,o2]) => o1 === snack.key || o2 === snack.key));
+      const isH   = hitOut.has(snack.key) && !isEO;
+      const c     = isEO ? '#ef4444' : isH ? '#22c55e' : '#475569';
+      const tc    = isEO ? '#ef4444' : isH ? '#22c55e' : '#64748b';
+      html += `
+        <circle cx="${OUT_X}" cy="${y}" r="5" fill="${c}"/>
+        <text x="${OUT_X + 10}" y="${y - 3}" font-size="15" font-family="system-ui,sans-serif">${snack.emoji}</text>
+        <text x="${OUT_X + 30}" y="${y + 4}" font-size="11" font-weight="700" fill="${tc}" font-family="system-ui,sans-serif">${snack.name}</text>`;
+    });
+
+    svg.innerHTML = html;
+  }
+
+  function arrow(x1, y1, x2, y2, color, dashed) {
+    const cx1  = x1 + (x2 - x1) * 0.42;
+    const cx2  = x1 + (x2 - x1) * 0.58;
+    const dash = dashed ? 'stroke-dasharray="5,3"' : '';
+    return `
+      <path d="M ${x1} ${y1} C ${cx1} ${y1} ${cx2} ${y2} ${x2} ${y2}"
+        stroke="${color}" stroke-width="2" fill="none" opacity="0.65" ${dash}/>
+      <polygon points="${x2},${y2} ${x2-7},${y2-3.5} ${x2-7},${y2+3.5}" fill="${color}" opacity="0.65"/>`;
+  }
+
+  // ── LOG ──────────────────────────────────────────
+  function updateLog() {
+    const list = document.getElementById('logList');
+    if (!pressLog.length) {
+      list.innerHTML = '<div class="log-empty">No codes entered yet.</div>';
+      return;
+    }
+    list.innerHTML = [...pressLog].reverse().map(e => e.isError
+      ? `<div class="log-err">⚡ <strong>${e.input}</strong> → ERROR: two possible outputs!</div>`
+      : `<div class="log-ok">${byKey[e.output].emoji} <strong style="color:#60a5fa">${e.input}</strong> → ${byKey[e.output].name}</div>`
+    ).join('');
+  }
+
+  // ── INIT ─────────────────────────────────────────
+  startNewMachine();
+</script>
+</body>
+</html>
