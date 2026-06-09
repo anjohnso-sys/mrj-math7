@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folding Number Line — Mr. J's Math 7</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #1F3864;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 32px 40px;
+      user-select: none;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 700; color: #F5A623; letter-spacing: 0.5px; margin-bottom: 20px; }
+
+    /* ── TABS ── */
+    .tabs { display: flex; background: #142850; border-radius: 10px; padding: 5px; margin-bottom: 28px; }
+    .tab-btn {
+      padding: 10px 40px; border-radius: 7px; border: none;
+      font-size: 1.1rem; font-weight: 700; cursor: pointer;
+      background: transparent; color: #94a3b8;
+      font-family: inherit; letter-spacing: 0.3px;
+    }
+    .tab-btn.active { background: #F5A623; color: #1F3864; }
+
+    /* ── PANELS ── */
+    .panel { display: none; width: 100%; max-width: 1060px; flex-direction: column; align-items: center; gap: 20px; }
+    .panel.active { display: flex; }
+
+    /* ── INFO BOXES ── */
+    .info-row { display: flex; gap: 28px; align-items: center; justify-content: center; }
+    .info-box {
+      background: #142850; border-radius: 10px; padding: 11px 26px;
+      font-size: 1.3rem; font-weight: 700; border: 2px solid #2d4f8e;
+    }
+    .info-box .hl { color: #F5A623; }
+
+    /* ── CANVAS ── */
+    .nl-wrap { width: 100%; position: relative; }
+    canvas { display: block; width: 100%; cursor: grab; touch-action: none; }
+    canvas:active { cursor: grabbing; }
+
+    /* ── FOLD MESSAGE ── */
+    .fold-msg {
+      font-size: 1.45rem; font-weight: 700; color: #F5A623;
+      text-align: center; min-height: 40px; opacity: 0; transition: opacity 0.3s;
+    }
+    .fold-msg.visible { opacity: 1; }
+
+    /* ── BUTTONS ── */
+    .btn-row { display: flex; gap: 16px; }
+    .btn {
+      padding: 13px 40px; border-radius: 10px; border: none;
+      font-size: 1.1rem; font-weight: 700; cursor: pointer;
+      font-family: inherit; letter-spacing: 0.3px;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary { background: #F5A623; color: #1F3864; box-shadow: 0 4px 14px rgba(245,166,35,0.3); }
+    .btn-primary:hover { box-shadow: 0 6px 20px rgba(245,166,35,0.5); }
+    .btn-primary:disabled { opacity: 0.4; cursor: default; transform: none; }
+    .btn-reset { background: #2d4f8e; color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+    .btn-reset:hover { background: #3a63b0; }
+
+    /* ── ZERO PAIR INFO ── */
+    .zp-info {
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      gap: 20px; align-items: center; width: 100%; max-width: 820px;
+    }
+    .zp-box {
+      background: #142850; border-radius: 10px; padding: 14px 20px;
+      font-size: 1.1rem; font-weight: 700; border: 2px solid; text-align: center;
+    }
+    .zp-box.red  { border-color: #E05252; }
+    .zp-box.blue { border-color: #5B9BD5; }
+    .zp-box .val { font-size: 1.6rem; margin: 4px 0; }
+    .zp-middle { text-align: center; font-size: 0.95rem; font-weight: 700; color: #94a3b8; line-height: 1.7; }
+    .same-yes { color: #4ade80; font-size: 1.15rem; }
+    .same-no  { color: #f87171; font-size: 1.15rem; }
+
+    /* ── EQUATION ── */
+    .zp-eq {
+      font-size: 1.6rem; font-weight: 800; text-align: center;
+      min-height: 44px; line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Number Line Explorer</h1>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('fold')">Fold</button>
+  <button class="tab-btn"        onclick="switchTab('zero')">Zero Pair</button>
+</div>
+
+<!-- ═══ FOLD PANEL ═══ -->
+<div class="panel active" id="panel-fold">
+  <div class="info-row">
+    <div class="info-box">Position: <span class="hl" id="f-pos-val">+4</span></div>
+    <div class="info-box">Distance from zero: <span class="hl" id="f-dist-val">4</span></div>
+  </div>
+  <div class="nl-wrap"><canvas id="fold-canvas" height="200"></canvas></div>
+  <div class="fold-msg" id="fold-msg">Both land at the same distance from zero.</div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="fold-btn" onclick="doFold()">Fold</button>
+    <button class="btn btn-reset"   onclick="resetFold()">Reset</button>
+  </div>
+</div>
+
+<!-- ═══ ZERO PAIR PANEL ═══ -->
+<div class="panel" id="panel-zero">
+  <div class="zp-info">
+    <div class="zp-box red">
+      <div style="color:#E05252;font-size:0.82rem">RED POINT</div>
+      <div class="val" id="zp-rv">−5</div>
+      <div style="font-size:0.88rem;color:#94a3b8">Distance: <span id="zp-rd" style="color:#fff">5</span></div>
+    </div>
+    <div class="zp-middle">
+      Same distance<br>from zero:<br>
+      <span id="zp-same" class="same-yes">Yes</span>
+    </div>
+    <div class="zp-box blue">
+      <div style="color:#5B9BD5;font-size:0.82rem">BLUE POINT</div>
+      <div class="val" id="zp-bv">+5</div>
+      <div style="font-size:0.88rem;color:#94a3b8">Distance: <span id="zp-bd" style="color:#fff">5</span></div>
+    </div>
+  </div>
+  <div class="nl-wrap"><canvas id="zero-canvas" height="200"></canvas></div>
+  <div class="zp-eq" id="zp-eq"></div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="zero-btn" onclick="doCombine()">Combine</button>
+    <button class="btn btn-reset"   onclick="resetZero()">Reset</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════
+const LO = -10, HI = 10;
+const FOLD_DUR    = 800;   // ms per fold half
+const HOLD_DUR    = 1500;  // ms held flat after fold
+const COMBINE_DUR = 600;   // ms for zero-pair slide
+
+// ═══════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) =>
+    b.classList.toggle('active', (name === 'fold') === (i === 0)));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'fold') { resizeFold(); }
+  else                 { resizeZero(); }
+}
+
+// ═══════════════════════════════════════
+// SHARED CANVAS HELPERS
+// ═══════════════════════════════════════
+function layout(canvas) {
+  const W = canvas.width, H = canvas.height;
+  const pad = 56;
+  const lineY  = Math.round(H * 0.50);
+  const x1     = pad, x2 = W - pad;
+  const unitPx = (x2 - x1) / (HI - LO);
+  const zeroX  = x1 + (-LO) * unitPx;
+  return { W, H, lineY, x1, x2, unitPx, zeroX };
+}
+
+function valToX(v, lo) { return lo.zeroX + v * lo.unitPx; }
+function xToVal(px, lo) {
+  return Math.max(LO, Math.min(HI, Math.round((px - lo.zeroX) / lo.unitPx)));
+}
+
+function arrowHead(ctx, x, y, dir) {
+  ctx.save();
+  ctx.fillStyle = '#4a6080';
+  ctx.beginPath();
+  ctx.moveTo(x + dir * 12, y);
+  ctx.lineTo(x - dir * 3, y - 6);
+  ctx.lineTo(x - dir * 3, y + 6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// Draw a circle point with a value label inside
+function drawDot(ctx, x, y, color, alpha, label, r = 15) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.globalAlpha = 1;                              // label always fully opaque
+  if (alpha < 0.7) {
+    ctx.shadowColor = 'rgba(0,0,0,0.95)';
+    ctx.shadowBlur  = 5;                            // dark halo makes gold pop on faint dot
+  }
+  ctx.fillStyle = alpha < 0.7 ? '#F5A623' : '#1F3864'; // gold on ghost, dark on solid
+  ctx.font = `bold ${r < 14 ? 12 : 13}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x, y);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════
+// FOLD MODE
+// ═══════════════════════════════════════
+const FC   = document.getElementById('fold-canvas');
+const fCtx = FC.getContext('2d');
+
+let fPos    = 4;
+let fGhost  = null;
+
+// Animation state
+let fAnim   = null;  // null | { phase: 'fold'|'hold'|'unfold', start: DOMHighResTimeStamp }
+
+function resizeFold() {
+  FC.width  = FC.clientWidth;
+  FC.height = 200;
+  fDrawFrame();
+}
+
+function fDrawFrame(ts) {
+  const lo = layout(FC);
+  const { W, H, lineY, x1, x2, unitPx, zeroX } = lo;
+  fCtx.clearRect(0, 0, W, H);
+
+  // ── Compute scaleX for fold (right half) ──
+  // scaleX: 1 = flat, 0 = 90°, -1 = fully folded over left
+  let scaleX = 1;
+  let animDone = false;
+
+  if (fAnim) {
+    const elapsed = (ts || performance.now()) - fAnim.start;
+    if (fAnim.phase === 'fold') {
+      const t = Math.min(elapsed / FOLD_DUR, 1);
+      scaleX = Math.cos(t * Math.PI);  // 1 → -1
+      if (t >= 1) {
+        fAnim = { phase: 'hold', start: performance.now() };
+        scaleX = -1;
+        document.getElementById('fold-msg').classList.add('visible');
+      }
+    } else if (fAnim.phase === 'hold') {
+      scaleX = -1;
+      if (elapsed >= HOLD_DUR) {
+        fAnim = { phase: 'unfold', start: performance.now() };
+      }
+    } else if (fAnim.phase === 'unfold') {
+      const t = Math.min(elapsed / FOLD_DUR, 1);
+      scaleX = Math.cos((1 - t) * Math.PI);  // -1 → 1
+      if (t >= 1) {
+        scaleX  = 1;
+        fAnim   = null;
+        animDone = true;
+        setTimeout(() => document.getElementById('fold-msg').classList.remove('visible'), 100);
+        document.getElementById('fold-btn').disabled = false;
+      }
+    }
+  }
+
+  // ── Axis line ──
+  fCtx.strokeStyle = '#4a6080';
+  fCtx.lineWidth   = 4;
+  fCtx.beginPath();
+  fCtx.moveTo(x1, lineY);
+  fCtx.lineTo(x2, lineY);
+  fCtx.stroke();
+  arrowHead(fCtx, x1, lineY, -1);
+  arrowHead(fCtx, x2, lineY,  1);
+
+  // ── LEFT HALF: ticks + labels v = -10..0 (no transform) ──
+  fCtx.font = 'bold 16px system-ui, sans-serif';
+  fCtx.textAlign = 'center';
+  for (let v = LO; v <= 0; v++) {
+    const x   = valToX(v, lo);
+    const big = v === 0;
+    fCtx.strokeStyle = '#fff';
+    fCtx.lineWidth   = 2;
+    fCtx.beginPath();
+    fCtx.moveTo(x, lineY - (big ? 13 : 7));
+    fCtx.lineTo(x, lineY + (big ? 13 : 7));
+    fCtx.stroke();
+    fCtx.fillStyle = big ? '#F5A623' : '#c8d8f0';
+    fCtx.fillText(v === 0 ? '0' : String(v), x, lineY + 28);
+  }
+
+  // ── RIGHT HALF: draw in transformed space so it folds ──
+  fCtx.save();
+  fCtx.translate(zeroX, lineY);
+  fCtx.scale(scaleX, 1);
+
+  // Coloured overlay on right-side line
+  fCtx.strokeStyle = '#E05252';
+  fCtx.lineWidth   = 4;
+  fCtx.beginPath();
+  fCtx.moveTo(0, 0);
+  fCtx.lineTo((x2 - zeroX), 0);
+  fCtx.stroke();
+
+  // Right-side tick marks
+  for (let v = 1; v <= HI; v++) {
+    const x = v * unitPx;
+    fCtx.strokeStyle = '#fff';
+    fCtx.lineWidth   = 2;
+    fCtx.beginPath();
+    fCtx.moveTo(x, -7);
+    fCtx.lineTo(x,  7);
+    fCtx.stroke();
+  }
+
+  // Right-side tick labels — counter-scale so text reads forward
+  if (Math.abs(scaleX) > 0.08) {
+    fCtx.font = 'bold 16px system-ui, sans-serif';
+    fCtx.textAlign = 'center';
+    for (let v = 1; v <= HI; v++) {
+      const x = v * unitPx;
+      fCtx.save();
+      fCtx.translate(x, 28);
+      fCtx.scale(1 / scaleX, 1);  // un-mirror text
+      fCtx.fillStyle = '#c8d8f0';
+      fCtx.fillText('+' + v, 0, 0);
+      fCtx.restore();
+    }
+  }
+
+  fCtx.restore(); // end right-half transform (no dot drawn inside — keeps dot circular)
+
+  // ── Distance arc — drawn BEFORE dots so the dot sits on top, naturally hiding the overlap ──
+  if (!fAnim && Math.abs(fPos) > 0) {
+    const px    = valToX(fPos, lo);
+    const left  = Math.min(px, zeroX);
+    const right = Math.max(px, zeroX);
+    const cx    = (left + right) / 2;
+    const ry    = 38;
+    fCtx.save();
+    fCtx.strokeStyle = '#F5A623';
+    fCtx.lineWidth   = 2.5;
+    fCtx.setLineDash([5, 4]);
+    fCtx.beginPath();
+    fCtx.moveTo(left, lineY);
+    fCtx.bezierCurveTo(left, lineY - ry, right, lineY - ry, right, lineY);
+    fCtx.stroke();
+    fCtx.setLineDash([]);
+    fCtx.fillStyle    = '#F5A623';
+    fCtx.font         = 'bold 17px system-ui, sans-serif';
+    fCtx.textAlign    = 'center';
+    fCtx.textBaseline = 'alphabetic';
+    fCtx.fillText(String(Math.abs(fPos)), cx, lineY - ry - 8);
+    fCtx.restore();
+  }
+
+  // ── Ghost point — drawn before main dot so main dot always appears on top ──
+  if (fGhost !== null && !fAnim) {
+    const gx = valToX(fGhost, lo);
+    drawDot(fCtx, gx, lineY, '#5B9BD5', 0.6,
+            fGhost > 0 ? '+' + fGhost : String(fGhost));
+  }
+
+  // ── Main draggable point — drawn last so it's always on top ──
+  // For positive fPos the screen X follows the fold; negative/zero stays fixed
+  const dotX   = fPos >= 0 ? zeroX + fPos * unitPx * scaleX : valToX(fPos, lo);
+  const dotLbl = fPos > 0 ? '+' + fPos : fPos === 0 ? '0' : String(fPos);
+  drawDot(fCtx, dotX, lineY, '#F5A623', 1, dotLbl);
+
+  if (fAnim) requestAnimationFrame(fDrawFrame);
+}
+
+// ── Fold info display ──
+function fUpdateInfo() {
+  document.getElementById('f-pos-val').textContent  = fPos > 0 ? '+' + fPos : String(fPos);
+  document.getElementById('f-dist-val').textContent = String(Math.abs(fPos));
+}
+
+// ── Fold button ──
+function doFold() {
+  if (fAnim) return;
+  fGhost = -fPos;
+  fAnim  = { phase: 'fold', start: performance.now() };
+  document.getElementById('fold-btn').disabled = true;
+  document.getElementById('fold-msg').classList.remove('visible');
+  requestAnimationFrame(fDrawFrame);
+}
+
+function resetFold() {
+  fAnim  = null;
+  fGhost = null;
+  fPos   = 4;
+  document.getElementById('fold-btn').disabled = false;
+  document.getElementById('fold-msg').classList.remove('visible');
+  fUpdateInfo();
+  fDrawFrame();
+}
+
+// ── Drag ──
+let fDrag = false;
+function fClientX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+function fHit(clientX) {
+  const rect = FC.getBoundingClientRect();
+  const px   = (clientX - rect.left) * (FC.width / rect.width);
+  return Math.abs(px - valToX(fPos, layout(FC))) < 32;
+}
+function fMove(clientX) {
+  const rect = FC.getBoundingClientRect();
+  const px   = (clientX - rect.left) * (FC.width / rect.width);
+  const v    = xToVal(px, layout(FC));
+  if (v !== fPos) { fPos = v; fUpdateInfo(); fDrawFrame(); }
+}
+FC.addEventListener('mousedown',  e => { if (!fAnim && fHit(e.clientX)) fDrag = true; });
+FC.addEventListener('mousemove',  e => { if (fDrag) fMove(e.clientX); });
+FC.addEventListener('mouseup',    () => fDrag = false);
+FC.addEventListener('mouseleave', () => fDrag = false);
+FC.addEventListener('touchstart', e => { e.preventDefault(); if (!fAnim && fHit(fClientX(e))) fDrag = true; }, { passive: false });
+FC.addEventListener('touchmove',  e => { e.preventDefault(); if (fDrag) fMove(fClientX(e)); }, { passive: false });
+FC.addEventListener('touchend',   () => fDrag = false);
+
+// ═══════════════════════════════════════
+// ZERO PAIR MODE
+// ═══════════════════════════════════════
+const ZC   = document.getElementById('zero-canvas');
+const zCtx = ZC.getContext('2d');
+
+let zRed  = -5, zBlue =  5;
+let zRedA = -5, zBlueA =  5;   // animated positions
+let zTarget = 0;                // where both points animate to
+let zCombAnim = null;           // null | { start, isOpposites }
+let zSameRevealed = false;      // show "same distance" result only after Combine
+let zDragRed = false, zDragBlue = false;
+let zBurst = 0;   // burst alpha (0 = none)
+
+function resizeZero() {
+  ZC.width  = ZC.clientWidth;
+  ZC.height = 200;
+  zDraw();
+}
+
+function zDraw(ts) {
+  const lo = layout(ZC);
+  const { W, H, lineY, x1, x2, unitPx, zeroX } = lo;
+  zCtx.clearRect(0, 0, W, H);
+
+  // Animate combine
+  if (zCombAnim) {
+    const t    = Math.min(((ts || performance.now()) - zCombAnim.start) / COMBINE_DUR, 1);
+    const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    zRedA  = zRed  + (zTarget - zRed)  * ease;
+    zBlueA = zBlue + (zTarget - zBlue) * ease;
+    if (t >= 1) {
+      zRedA = zBlueA = zTarget;
+      const wasOpposites = zCombAnim.isOpposites;
+      zCombAnim = null;
+      if (wasOpposites) zBurst = 1;
+      document.getElementById('zero-btn').disabled = false;
+      zShowEq(wasOpposites);
+    }
+  }
+
+  // ── Axis ──
+  zCtx.strokeStyle = '#4a6080';
+  zCtx.lineWidth   = 4;
+  zCtx.beginPath();
+  zCtx.moveTo(x1, lineY);
+  zCtx.lineTo(x2, lineY);
+  zCtx.stroke();
+  arrowHead(zCtx, x1, lineY, -1);
+  arrowHead(zCtx, x2, lineY,  1);
+
+  // ── Ticks ──
+  zCtx.font = 'bold 16px system-ui, sans-serif';
+  zCtx.textAlign = 'center';
+  for (let v = LO; v <= HI; v++) {
+    const x   = valToX(v, lo);
+    const big = v === 0;
+    zCtx.strokeStyle = '#fff';
+    zCtx.lineWidth   = 2;
+    zCtx.beginPath();
+    zCtx.moveTo(x, lineY - (big ? 13 : 7));
+    zCtx.lineTo(x, lineY + (big ? 13 : 7));
+    zCtx.stroke();
+    zCtx.fillStyle = big ? '#F5A623' : '#c8d8f0';
+    zCtx.fillText(v === 0 ? '0' : (v > 0 ? '+' + v : String(v)), x, lineY + 28);
+  }
+
+  // ── Burst effect at zero ──
+  if (zBurst > 0) {
+    zCtx.save();
+    zCtx.globalAlpha = zBurst;
+    for (let i = 0; i < 14; i++) {
+      const angle = (i / 14) * Math.PI * 2;
+      const r0 = 12, r1 = 42 + (1 - zBurst) * 16;
+      zCtx.strokeStyle = i % 2 === 0 ? '#E05252' : '#5B9BD5';
+      zCtx.lineWidth   = 3;
+      zCtx.beginPath();
+      zCtx.moveTo(zeroX + Math.cos(angle) * r0, lineY + Math.sin(angle) * r0);
+      zCtx.lineTo(zeroX + Math.cos(angle) * r1, lineY + Math.sin(angle) * r1);
+      zCtx.stroke();
+    }
+    zCtx.restore();
+    zBurst -= 0.045;
+    if (zBurst > 0) requestAnimationFrame(zDraw);
+  }
+
+  // ── Points ──
+  const bx = zeroX + zBlueA * unitPx;
+  const rx = zeroX + zRedA  * unitPx;
+  const fmtB = Math.round(zBlueA) === zBlueA ? (zBlueA >= 0 ? (zBlueA > 0 ? '+' + zBlueA : '0') : String(zBlueA)) : '';
+  const fmtR = Math.round(zRedA)  === zRedA  ? (zRedA  >  0 ? '+' + zRedA  : (zRedA === 0 ? '0' : String(zRedA)))  : '';
+  drawDot(zCtx, bx, lineY, '#5B9BD5', 1, fmtB);
+  drawDot(zCtx, rx, lineY, '#E05252', 1, fmtR);
+
+  if (zCombAnim) requestAnimationFrame(zDraw);
+}
+
+function zUpdateInfo() {
+  document.getElementById('zp-rv').textContent = String(zRed);          // always negative
+  document.getElementById('zp-bv').textContent = '+' + zBlue;           // always positive
+  document.getElementById('zp-rd').textContent = String(Math.abs(zRed));
+  document.getElementById('zp-bd').textContent = String(Math.abs(zBlue));
+  const el = document.getElementById('zp-same');
+  if (zSameRevealed) {
+    const same = Math.abs(zRed) === Math.abs(zBlue);
+    el.textContent = same ? 'Yes' : 'No';
+    el.className   = same ? 'same-yes' : 'same-no';
+  } else {
+    el.textContent = '';
+    el.className   = '';
+  }
+}
+
+function zShowEq(isOpposites) {
+  zSameRevealed = true;
+  zUpdateInfo(); // now show the Yes / No
+  const rLbl   = String(zRed);           // e.g. −5
+  const bLbl   = '+' + zBlue;           // e.g. +7
+  const sum    = zRed + zBlue;
+  const sumLbl = sum > 0 ? '+' + sum : String(sum);
+  if (isOpposites) {
+    document.getElementById('zp-eq').innerHTML =
+      `<span style="color:#E05252">${rLbl}</span> + ` +
+      `(<span style="color:#5B9BD5">${bLbl}</span>) = 0` +
+      `<span style="font-size:1rem;color:#4ade80;font-weight:600;margin-left:20px">` +
+      `They add to zero. These are opposites.</span>`;
+  } else {
+    document.getElementById('zp-eq').innerHTML =
+      `<span style="color:#E05252">${rLbl}</span> + ` +
+      `(<span style="color:#5B9BD5">${bLbl}</span>) = ` +
+      `<span style="color:#F5A623">${sumLbl}</span>` +
+      `<span style="font-size:1rem;color:#f87171;font-weight:600;margin-left:20px">` +
+      `Not opposites — they don't add to zero.</span>`;
+  }
+}
+
+function doCombine() {
+  if (zCombAnim) return;
+  const isOpposites = (zRed + zBlue === 0);
+  zTarget   = isOpposites ? 0 : zRed + zBlue;
+  zCombAnim = { start: performance.now(), isOpposites };
+  document.getElementById('zero-btn').disabled = true;
+  document.getElementById('zp-eq').innerHTML = '';
+  requestAnimationFrame(zDraw);
+}
+
+function resetZero() {
+  zCombAnim = null; zSameRevealed = false;
+  zRed = -5; zBlue = 5; zRedA = -5; zBlueA = 5; zTarget = 0; zBurst = 0;
+  document.getElementById('zero-btn').disabled = false;
+  document.getElementById('zp-eq').innerHTML = '';
+  zUpdateInfo();
+  zDraw();
+}
+
+// ── Zero pair drag ──
+let zDragRed_ = false, zDragBlue_ = false;
+function zClientX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+
+function zHit(clientX) {
+  const lo   = layout(ZC);
+  const rect = ZC.getBoundingClientRect();
+  const px   = (clientX - rect.left) * (ZC.width / rect.width);
+  const rx   = valToX(zRed,  lo);
+  const bx   = valToX(zBlue, lo);
+  if (Math.abs(px - rx) < 32) return 'red';
+  if (Math.abs(px - bx) < 32) return 'blue';
+  return null;
+}
+
+function zMovePoint(clientX) {
+  const lo   = layout(ZC);
+  const rect = ZC.getBoundingClientRect();
+  const px   = (clientX - rect.left) * (ZC.width / rect.width);
+  const v    = xToVal(px, lo);
+  if (zDragRed_) {
+    const nv = Math.min(-1, v);    // red stays negative
+    if (nv !== zRed) { zRed = nv; zRedA = nv; zUpdateInfo(); zDraw(); }
+  }
+  if (zDragBlue_) {
+    const nv = Math.max(1, v);     // blue stays positive
+    if (nv !== zBlue) { zBlue = nv; zBlueA = nv; zUpdateInfo(); zDraw(); }
+  }
+}
+
+ZC.addEventListener('mousedown',  e => {
+  if (zCombAnim) return;
+  const h = zHit(e.clientX);
+  zDragRed_ = h === 'red'; zDragBlue_ = h === 'blue';
+});
+ZC.addEventListener('mousemove',  e => { if (zDragRed_ || zDragBlue_) zMovePoint(e.clientX); });
+ZC.addEventListener('mouseup',    () => { zDragRed_ = false; zDragBlue_ = false; });
+ZC.addEventListener('mouseleave', () => { zDragRed_ = false; zDragBlue_ = false; });
+ZC.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (zCombAnim) return;
+  const h = zHit(zClientX(e));
+  zDragRed_ = h === 'red'; zDragBlue_ = h === 'blue';
+}, { passive: false });
+ZC.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (zDragRed_ || zDragBlue_) zMovePoint(zClientX(e));
+}, { passive: false });
+ZC.addEventListener('touchend', () => { zDragRed_ = false; zDragBlue_ = false; });
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+window.addEventListener('resize', () => {
+  resizeFold();
+  resizeZero();
+});
+window.addEventListener('load', () => {
+  resizeFold();
+  resizeZero();
+  fUpdateInfo();
+  zUpdateInfo();
+});
+</script>
+</body>
+</html>
