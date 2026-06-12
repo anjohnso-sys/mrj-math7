@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiplying Fractions — Mr. J's Math 7</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1F3864;
+    color: #f1f5f9;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 20px 48px;
+    user-select: none;
+  }
+
+  h1 { font-size: 1.5rem; font-weight: 700; color: #F5A623; text-align: center; }
+  .subtitle { font-size: 0.88rem; color: #94a3b8; margin-top: 4px; text-align: center; margin-bottom: 20px; }
+
+  /* ── CARD ── */
+  .card {
+    background: #142850; border-radius: 14px; padding: 20px 24px;
+    width: 100%; max-width: 720px;
+    border: 1px solid #2d4f8e;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  /* ── FRACTION INPUTS ── */
+  .inputs-row {
+    display: flex; align-items: center; gap: 12px;
+    flex-wrap: wrap; justify-content: center; margin-bottom: 8px;
+  }
+  .fraction-input { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .fraction-input label {
+    font-size: 0.68rem; color: #94a3b8; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .fraction-fields { display: flex; flex-direction: column; align-items: center; }
+  .fraction-fields input {
+    width: 62px; text-align: center; font-size: 1.25rem; font-weight: 700;
+    padding: 7px 4px; border: 2px solid #2d4f8e; border-radius: 7px;
+    background: #0f172a; color: #f1f5f9; font-family: inherit;
+    transition: border-color 0.2s; -moz-appearance: textfield;
+  }
+  .fraction-fields input:focus { outline: none; border-color: #F5A623; }
+  .fraction-fields input::-webkit-outer-spin-button,
+  .fraction-fields input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .fraction-bar { width: 62px; height: 3px; background: #94a3b8; margin: 4px 0; border-radius: 2px; }
+
+  .times-sign, .equals-sign {
+    font-size: 1.8rem; font-weight: 300; color: #94a3b8; padding: 0 4px; margin-top: 10px;
+  }
+
+  .result-display { display: flex; flex-direction: column; align-items: center; min-width: 80px; margin-top: 10px; }
+  .result-fraction {
+    display: flex; flex-direction: column; align-items: center;
+    font-size: 1.25rem; font-weight: 700; opacity: 0; transition: opacity 0.4s;
+  }
+  .result-fraction.show { opacity: 1; }
+  .result-fraction .num, .result-fraction .den { color: #a78bfa; }
+  .result-fraction .bar { width: 50px; height: 3px; background: #a78bfa; margin: 4px 0; border-radius: 2px; }
+  .result-simplified {
+    font-size: 0.78rem; color: #94a3b8; margin-top: 6px;
+    opacity: 0; transition: opacity 0.4s; text-align: center;
+  }
+  .result-simplified.show { opacity: 1; }
+
+  .error-msg { color: #f87171; font-size: 0.82rem; text-align: center; min-height: 1.2em; margin-top: 4px; }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap; justify-content: center; margin: 12px 0;
+  }
+  .btn {
+    padding: 11px 28px; border-radius: 9px; border: none;
+    font-size: 0.95rem; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-primary { background: #F5A623; color: #1F3864; box-shadow: 0 4px 14px rgba(245,166,35,0.3); }
+  .btn-primary:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(245,166,35,0.5); }
+  .btn-secondary { background: #2d4f8e; color: #f1f5f9; }
+  .btn-secondary:hover:not(:disabled) { background: #3a63b0; }
+
+  .speed-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #94a3b8; }
+  input[type=range] { width: 90px; accent-color: #F5A623; }
+
+  /* ── CANVAS ── */
+  .canvas-wrap { position: relative; width: 100%; display: flex; justify-content: center; margin-top: 4px; }
+  canvas { border-radius: 10px; max-width: 100%; border: 1px solid #2d4f8e; }
+
+  /* ── STEP LABEL ── */
+  .step-label {
+    text-align: center; font-size: 0.85rem; font-weight: 600;
+    color: #F5A623; min-height: 1.4em; margin-top: 10px;
+  }
+
+  /* ── EQUATION STRIP ── */
+  .equation-strip {
+    text-align: center; font-size: 1rem; min-height: 2.8em; margin-top: 10px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; flex-wrap: wrap; color: #f1f5f9; font-weight: 500;
+  }
+  .eq-frac { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; font-weight: 700; }
+  .eq-frac .bar { width: 100%; min-width: 20px; height: 2px; background: currentColor; margin: 2px 0; }
+  .eq-blue   { color: #60a5fa; }
+  .eq-red    { color: #f87171; }
+  .eq-purple { color: #a78bfa; }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex; gap: 16px; justify-content: center; margin-top: 14px;
+    flex-wrap: wrap; font-size: 0.78rem; color: #94a3b8;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-swatch { width: 16px; height: 16px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<h1>Multiplying Fractions</h1>
+<p class="subtitle">Area Model — Grade 7 Math</p>
+
+<div class="card">
+  <div class="inputs-row">
+    <div class="fraction-input">
+      <label>Fraction 1</label>
+      <div class="fraction-fields">
+        <input type="number" id="n1" value="2" min="1" max="20">
+        <div class="fraction-bar"></div>
+        <input type="number" id="d1" value="3" min="1" max="20">
+      </div>
+    </div>
+    <span class="times-sign">×</span>
+    <div class="fraction-input">
+      <label>Fraction 2</label>
+      <div class="fraction-fields">
+        <input type="number" id="n2" value="3" min="1" max="20">
+        <div class="fraction-bar"></div>
+        <input type="number" id="d2" value="4" min="1" max="20">
+      </div>
+    </div>
+    <span class="equals-sign">=</span>
+    <div class="result-display">
+      <div class="result-fraction" id="resultFrac">
+        <span class="num" id="resNum">?</span>
+        <div class="bar"></div>
+        <span class="den" id="resDen">?</span>
+      </div>
+      <div class="result-simplified" id="resultSimp"></div>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="controls">
+    <button class="btn btn-primary"   id="btnAnimate" onclick="startAnimation()">▶ Animate</button>
+    <button class="btn btn-secondary" id="btnNext"    onclick="nextStep()"   disabled>Next →</button>
+    <button class="btn btn-secondary" id="btnReplay"  onclick="replay()"     disabled>↺ Replay</button>
+    <button class="btn btn-secondary" id="btnClear"   onclick="clearGrid()">✕ Clear</button>
+    <div class="speed-row">
+      <span>Speed:</span>
+      <input type="range" id="speedSlider" min="1" max="5" value="3">
+      <span id="speedLabel">Normal</span>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="mainCanvas" width="640" height="420"></canvas>
+  </div>
+
+  <div class="step-label" id="stepLabel">Enter fractions and press Animate</div>
+  <div class="equation-strip" id="equationStrip"></div>
+
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(59,130,246,0.45);border:2px solid #60a5fa;"></div>
+      <span>Fraction 1 (<span id="legF1">—</span>)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(248,113,113,0.45);border:2px solid #f87171;"></div>
+      <span>Fraction 2 (<span id="legF2">—</span>)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(139,92,246,0.75);border:2px solid #a78bfa;"></div>
+      <span>Product (overlap)</span>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── Canvas colours ────────────────────────────────────────────────────────────
+const C = {
+  bg:        '#0f1a2e',
+  rect:      '#e2e8f0',
+  axisLabel: '#94a3b8',
+  blue:      '#3b82f6',
+  blueLabel: '#60a5fa',
+  red:       '#f87171',
+  redLabel:  '#f87171',
+  purple:    '#a78bfa',
+};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let phase        = 'idle'; // 'idle' | 'animating' | 'paused' | 'done'
+let animating    = false;
+let animFrame    = null;
+let currentStep  = 0;
+let stepProgress = 0;
+let lastTimestamp = null;
+
+let f1 = { n: 2, d: 3 };
+let f2 = { n: 3, d: 4 };
+
+const SPEED_LABELS     = ['Slowest', 'Slow', 'Normal', 'Fast', 'Fastest'];
+const STEP_DURATION_BASE = 900;
+const TOTAL_STEPS      = 5;
+
+const canvas = document.getElementById('mainCanvas');
+const ctx    = canvas.getContext('2d');
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+function simplify(n, d) {
+  if (d === 0) return { n, d };
+  const g = gcd(Math.abs(n), Math.abs(d));
+  return { n: n / g, d: d / g };
+}
+
+function parseFractions() {
+  return {
+    n1: parseInt(document.getElementById('n1').value) || 0,
+    d1: parseInt(document.getElementById('d1').value) || 0,
+    n2: parseInt(document.getElementById('n2').value) || 0,
+    d2: parseInt(document.getElementById('d2').value) || 0,
+  };
+}
+
+function validateInputs() {
+  const { n1, d1, n2, d2 } = parseFractions();
+  const err = document.getElementById('errorMsg');
+
+  if (!n1 || !d1 || !n2 || !d2)      { err.textContent = 'Please fill in all four values.'; return null; }
+  if (d1 === 0 || d2 === 0)           { err.textContent = 'Denominator cannot be zero.';     return null; }
+  if (n1 < 1 || n2 < 1 || d1 < 1 || d2 < 1) { err.textContent = 'All values must be positive.'; return null; }
+  if (n1 > d1 || n2 > d2) { err.textContent = 'Both fractions must be ≤ 1 for the area model.'; return null; }
+  if (d1 > 12 || d2 > 12) { err.textContent = 'Keep denominators ≤ 12 for a clear visual.'; return null; }
+  if (n1 > 20 || n2 > 20) { err.textContent = 'Keep numerators ≤ 20.';                        return null; }
+
+  err.textContent = '';
+  return { n1, d1, n2, d2 };
+}
+
+function getStepDuration() {
+  const speed = parseInt(document.getElementById('speedSlider').value);
+  return STEP_DURATION_BASE * [2.2, 1.5, 1.0, 0.6, 0.35][speed - 1];
+}
+
+function ease(t) { return t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function drawCanvasFrac(cx, cy, n, d, color, size) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.font = `bold ${size}px Segoe UI, sans-serif`;
+  ctx.textAlign = 'center';
+  const barW = Math.max(ctx.measureText(String(n)).width, ctx.measureText(String(d)).width) + 12;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(String(n), cx, cy - 4);
+  ctx.fillRect(cx - barW / 2, cy, barW, 2.5);
+  ctx.textBaseline = 'top';
+  ctx.fillText(String(d), cx, cy + 6);
+  ctx.restore();
+}
+
+// ── Layout ───────────────────────────────────────────────────────────────────
+function getLayout() {
+  const W = canvas.width, H = canvas.height;
+  const GAP  = 70;
+  const size = Math.min(Math.floor((W - GAP - 40) / 2), H - 90);
+  const top  = Math.floor((H - size) / 2) + 14;
+  const cx   = W / 2;
+  return {
+    left:  Math.floor(cx - size / 2),
+    left1: Math.floor(cx - size - GAP / 2),
+    left2: Math.floor(cx + GAP / 2),
+    top, rectW: size, rectH: size,
+  };
+}
+
+// ── Drawing ──────────────────────────────────────────────────────────────────
+function drawScene(step, progress) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Dark canvas background
+  ctx.fillStyle = C.bg;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, canvas.width, canvas.height, 10);
+  ctx.fill();
+
+  drawMode1(step, progress, getLayout());
+}
+
+function drawMode1(step, progress, L) {
+  const { left, left1, left2, top, rectW, rectH } = L;
+  const p = ease(Math.min(progress, 1));
+
+  // Animated positions: left rect (blue) and right rect (red)
+  const posL = step < 4 ? left1 : step === 4 ? lerp(left1, left, p) : left;
+  const posR = step < 4 ? left2 : step === 4 ? lerp(left2, left, p) : left;
+
+  // Step 1: both rect outlines appear simultaneously
+  if (step >= 1) {
+    const pct = step === 1 ? p : 1;
+    ctx.strokeStyle = C.rect; ctx.lineWidth = 2.5;
+    ctx.strokeRect(posL, top, rectW * pct, rectH);
+    if (step < 5) ctx.strokeRect(posR, top, rectW * pct, rectH);
+  }
+
+  // Step 2: blue vertical strips on left rect
+  if (step >= 2) {
+    const { n, d } = f1;
+    const stripW = rectW / d;
+    const cols   = step === 2 ? Math.min(Math.ceil(p * n), n) : n;
+    for (let i = 0; i < cols; i++) {
+      const a = (step === 2 && i === cols - 1) ? ease(Math.min(p * n - i, 1)) : 1;
+      ctx.fillStyle = `rgba(59,130,246,${0.42 * a})`;
+      ctx.fillRect(posL + i * stripW, top, stripW, rectH);
+    }
+    ctx.strokeStyle = C.blue; ctx.lineWidth = 1.5;
+    for (let i = 1; i < d; i++) {
+      ctx.globalAlpha = step === 2 ? Math.min(p * d / i, 1) : 1;
+      ctx.beginPath();
+      ctx.moveTo(posL + i * stripW, top);
+      ctx.lineTo(posL + i * stripW, top + rectH);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = step === 2 ? Math.min(p * 2, 1) : 1;
+    drawCanvasFrac(posL + (n / d) * rectW / 2, top - 30, n, d, C.blueLabel, 19);
+    ctx.globalAlpha = 1;
+  }
+
+  // Step 3: red horizontal strips on right rect
+  if (step >= 3) {
+    const { n, d } = f2;
+    const stripH = rectH / d;
+    const rows   = step === 3 ? Math.min(Math.ceil(p * n), n) : n;
+    for (let j = 0; j < rows; j++) {
+      const a = (step === 3 && j === rows - 1) ? ease(Math.min(p * n - j, 1)) : 1;
+      ctx.fillStyle = `rgba(248,113,113,${0.42 * a})`;
+      ctx.fillRect(posR, top + j * stripH, rectW, stripH);
+    }
+    ctx.strokeStyle = C.red; ctx.lineWidth = 1.5;
+    for (let j = 1; j < d; j++) {
+      ctx.globalAlpha = step === 3 ? Math.min(p * d / j, 1) : 1;
+      ctx.beginPath();
+      ctx.moveTo(posR, top + j * stripH);
+      ctx.lineTo(posR + rectW, top + j * stripH);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // Red label: left side of rect, upright at all steps
+    // Steps 3: fades in at posR-44 (left of right rect)
+    // Step 4: fades in at posL-44 as the left rect slides to merged position
+    // Step 5+: fully visible at posL-44
+    {
+      const a = step === 3 ? Math.min(p * 2, 1) : step === 4 ? ease(p) : 1;
+      const lx = step === 3 ? posR - 44 : posL - 44;
+      ctx.globalAlpha = a;
+      drawCanvasFrac(lx, top + (n / d) * rectH / 2, n, d, C.redLabel, 19);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Step 4: purple intersection grows as rects converge
+  if (step >= 4) {
+    const overW = (f1.n / f1.d) * rectW;
+    const overH = (f2.n / f2.d) * rectH;
+    if (step === 4) {
+      // Dynamic: where blue region meets right rect
+      const iL = Math.max(posL, posR);
+      const iR = Math.min(posL + overW, posR + rectW);
+      const iW = Math.max(0, iR - iL);
+      if (iW > 0) {
+        ctx.fillStyle   = 'rgba(139,92,246,0.82)';
+        ctx.fillRect(iL, top, iW, overH);
+        ctx.strokeStyle = 'rgba(167,139,250,0.9)';
+        ctx.lineWidth   = 2;
+        ctx.strokeRect(iL, top, iW, overH);
+      }
+    } else {
+      ctx.fillStyle   = 'rgba(139,92,246,0.82)';
+      ctx.fillRect(posL, top, overW, overH);
+      ctx.strokeStyle = 'rgba(167,139,250,1)';
+      ctx.lineWidth   = 2.5;
+      ctx.strokeRect(posL, top, overW, overH);
+    }
+  }
+
+  // Outer borders always on top
+  if (step >= 1) {
+    ctx.strokeStyle = C.rect; ctx.lineWidth = 2.5;
+    ctx.strokeRect(posL, top, rectW, rectH);
+    if (step < 5) ctx.strokeRect(posR, top, rectW, rectH);
+  }
+}
+
+// ── Step labels ───────────────────────────────────────────────────────────────
+function getStepName(step) {
+  if (step === 1) return 'Two equal rectangles appear — each represents 1 whole…';
+  if (step === 2) return `Shading ${f1.n}/${f1.d} on the left rectangle…`;
+  if (step === 3) return `Shading ${f2.n}/${f2.d} on the right rectangle…`;
+  if (step === 4) return 'Overlaying the two rectangles — the overlap is the product…';
+  if (step === 5) return 'Done! The purple area = the product.';
+  return '';
+}
+
+// ── Equation strip ────────────────────────────────────────────────────────────
+function updateEquation(step) {
+  const strip = document.getElementById('equationStrip');
+  const rf    = document.getElementById('resultFrac');
+  const rs    = document.getElementById('resultSimp');
+  const prod  = { n: f1.n * f2.n, d: f1.d * f2.d };
+  const simp  = simplify(prod.n, prod.d);
+  const muted = 'color:#94a3b8;font-size:1.3rem';
+
+  let html = '';
+  if (step >= 2) html += `<span class="eq-frac eq-blue"><span>${f1.n}</span><span class="bar"></span><span>${f1.d}</span></span>`;
+  if (step >= 3) html += `<span style="${muted}">×</span><span class="eq-frac eq-red"><span>${f2.n}</span><span class="bar"></span><span>${f2.d}</span></span>`;
+  if (step >= 4) html += `<span style="${muted}">=</span><span class="eq-frac eq-purple"><span>${f1.n}×${f2.n}</span><span class="bar"></span><span>${f1.d}×${f2.d}</span></span>`;
+  if (step >= 5) {
+    html += `<span style="${muted}">=</span><span class="eq-frac eq-purple"><span>${prod.n}</span><span class="bar"></span><span>${prod.d}</span></span>`;
+    rf.classList.add('show');
+    document.getElementById('resNum').textContent = prod.n;
+    document.getElementById('resDen').textContent = prod.d;
+    if (simp.n !== prod.n || simp.d !== prod.d) {
+      rs.textContent = `= ${simp.n}/${simp.d} (simplified)`;
+    } else {
+      rs.textContent = '(already simplified)';
+    }
+    rs.classList.add('show');
+  }
+  strip.innerHTML = html;
+}
+
+// ── Animation loop ────────────────────────────────────────────────────────────
+function animate(timestamp) {
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const delta = timestamp - lastTimestamp;
+  lastTimestamp = timestamp;
+
+  stepProgress += delta / getStepDuration();
+
+  if (stepProgress >= 1) {
+    stepProgress = 1;
+    animating = false;
+    phase = currentStep >= TOTAL_STEPS ? 'done' : 'paused';
+    drawScene(currentStep, 1);
+    updateEquation(currentStep);
+    document.getElementById('stepLabel').textContent = getPauseMessage(currentStep);
+    updateButtons();
+    return;
+  }
+
+  drawScene(currentStep, stepProgress);
+  updateEquation(currentStep);
+  document.getElementById('stepLabel').textContent = getStepName(currentStep);
+
+  if (animating) animFrame = requestAnimationFrame(animate);
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+function startAnimation() {
+  const vals = validateInputs();
+  if (!vals) return;
+  f1 = { n: vals.n1, d: vals.d1 };
+  f2 = { n: vals.n2, d: vals.d2 };
+  updateLegend();
+  resetDisplay();
+  phase = 'animating';
+  animating = true; currentStep = 1; stepProgress = 0; lastTimestamp = null;
+  updateButtons();
+  animFrame = requestAnimationFrame(animate);
+}
+
+function replay() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  resetDisplay();
+  phase = 'animating';
+  animating = true; currentStep = 1; stepProgress = 0; lastTimestamp = null;
+  updateButtons();
+  animFrame = requestAnimationFrame(animate);
+}
+
+function nextStep() {
+  if (phase !== 'paused') return;
+  currentStep++;
+  stepProgress = 0;
+  lastTimestamp = null;
+  animating = true;
+  phase = 'animating';
+  updateButtons();
+  animFrame = requestAnimationFrame(animate);
+}
+
+function getPauseMessage(step) {
+  const prod = { n: f1.n * f2.n, d: f1.d * f2.d };
+  const simp = simplify(prod.n, prod.d);
+  const simpStr = (simp.n !== prod.n || simp.d !== prod.d) ? ` = ${simp.n}/${simp.d}` : '';
+  if (step === 1) return `Two equal squares — each represents 1 whole. Left will show ${f1.n}/${f1.d}, right will show ${f2.n}/${f2.d}.`;
+  if (step === 2) return `${f1.n} of ${f1.d} equal columns are blue = ${f1.n}/${f1.d} of the whole.`;
+  if (step === 3) return `${f2.n} of ${f2.d} equal rows are red = ${f2.n}/${f2.d} of the whole. Watch what happens when they combine.`;
+  if (step === 4) return `Purple overlap = ${prod.n} pieces out of ${prod.d} total = ${prod.n}/${prod.d}. This is ${f1.n}/${f1.d} × ${f2.n}/${f2.d}!`;
+  return `${f1.n}/${f1.d} × ${f2.n}/${f2.d} = ${prod.n}/${prod.d}${simpStr}`;
+}
+
+function updateButtons() {
+  document.getElementById('btnAnimate').disabled = phase !== 'idle';
+  document.getElementById('btnNext').disabled    = phase !== 'paused' || currentStep >= TOTAL_STEPS;
+  document.getElementById('btnReplay').disabled  = phase === 'idle' || phase === 'animating';
+}
+
+function resetDisplay() {
+  document.getElementById('equationStrip').innerHTML = '';
+  document.getElementById('stepLabel').textContent   = 'Animating…';
+  document.getElementById('resultFrac').classList.remove('show');
+  document.getElementById('resultSimp').classList.remove('show');
+  drawScene(0, 0);
+}
+
+function clearGrid() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  phase = 'idle';
+  animating = false; currentStep = 0; stepProgress = 0; lastTimestamp = null;
+  document.getElementById('equationStrip').innerHTML = '';
+  document.getElementById('stepLabel').textContent   = 'Enter fractions and press Animate';
+  document.getElementById('resultFrac').classList.remove('show');
+  document.getElementById('resultSimp').classList.remove('show');
+  document.getElementById('errorMsg').textContent = '';
+  updateButtons();
+  drawScene(0, 0);
+}
+
+function updateLegend() {
+  document.getElementById('legF1').textContent = `${f1.n}/${f1.d}`;
+  document.getElementById('legF2').textContent = `${f2.n}/${f2.d}`;
+}
+
+// ── Speed label ───────────────────────────────────────────────────────────────
+document.getElementById('speedSlider').addEventListener('input', function () {
+  document.getElementById('speedLabel').textContent = SPEED_LABELS[this.value - 1];
+});
+
+// ── Responsive canvas ─────────────────────────────────────────────────────────
+function resizeCanvas() {
+  const maxW  = Math.min(canvas.closest('.card').offsetWidth - 48, 640);
+  const scale = maxW / 640;
+  canvas.style.width  = maxW + 'px';
+  canvas.style.height = (420 * scale) + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+resizeCanvas();
+drawScene(0, 0);
+updateButtons();
+</script>
+</body>
+</html>
