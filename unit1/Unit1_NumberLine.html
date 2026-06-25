@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Line — Mr. J's Math 7</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1F3864;
+    color: #f1f5f9;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 20px 48px;
+    user-select: none;
+  }
+
+  h1 { font-size: 1.5rem; font-weight: 700; color: #F5A623; text-align: center; }
+  .subtitle { font-size: 0.88rem; color: #94a3b8; margin-top: 4px; text-align: center; margin-bottom: 20px; }
+
+  .card {
+    background: #142850; border-radius: 14px; padding: 20px 24px;
+    width: 100%; max-width: 720px;
+    border: 1px solid #2d4f8e;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  /* ── CANVAS ── */
+  .canvas-wrap { width: 100%; display: flex; justify-content: center; }
+  canvas {
+    border-radius: 10px; max-width: 100%;
+    border: 1px solid #2d4f8e;
+    cursor: default;
+    display: block;
+  }
+
+  /* ── INPUT ROW ── */
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin: 16px 0 0;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: center;
+  }
+
+  .num-input {
+    flex: 1;
+    min-width: 160px;
+    max-width: 260px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1.5px solid #2d4f8e;
+    background: #0f1a2e;
+    color: #f1f5f9;
+    font-size: 1rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .num-input:focus { border-color: #F5A623; }
+  .num-input::placeholder { color: #334155; }
+
+  .error-msg {
+    text-align: center;
+    font-size: 0.82rem;
+    color: #f87171;
+    min-height: 1.3em;
+    margin-top: 6px;
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 10px 22px; border-radius: 8px; border: none;
+    font-size: 0.95rem; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: transform 0.1s, box-shadow 0.1s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary { background: #F5A623; color: #1F3864; box-shadow: 0 4px 14px rgba(245,166,35,0.3); }
+  .btn-primary:hover { box-shadow: 0 6px 20px rgba(245,166,35,0.5); }
+  .btn-secondary { background: #2d4f8e; color: #f1f5f9; }
+  .btn-secondary:hover { background: #3a63b0; }
+
+  /* ── POINT CHIPS ── */
+  .point-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    min-height: 36px;
+    align-items: center;
+  }
+
+  .point-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #1a3a6b;
+    border-radius: 20px;
+    padding: 5px 8px 5px 10px;
+    font-size: 0.88rem;
+    border: 1px solid #2d4f8e;
+  }
+
+  .chip-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
+  }
+
+  .chip-lbl {
+    color: #f1f5f9;
+    font-weight: 600;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  .chip-del {
+    background: none; border: none;
+    color: #64748b; cursor: pointer;
+    font-size: 1.1rem; line-height: 1;
+    padding: 0 2px; font-family: inherit;
+    transition: color 0.15s;
+  }
+  .chip-del:hover { color: #f87171; }
+
+  .hint-text {
+    font-size: 0.78rem; color: #475569;
+    text-align: center; margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Number Line</h1>
+<p class="subtitle">Integers, Fractions &amp; Decimals — Unit 1 · Grade 7 Math</p>
+
+<div class="card">
+
+  <div class="canvas-wrap">
+    <canvas id="nlCanvas" width="640" height="280"></canvas>
+  </div>
+
+  <div class="input-row">
+    <input class="num-input" id="numInput"
+           placeholder="e.g. 3/4  −1.5  2 3/4  −5"
+           autocomplete="off" autocorrect="off" spellcheck="false" />
+    <button class="btn btn-primary"   onclick="addPoint()">Add Point</button>
+    <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+  </div>
+  <div class="error-msg" id="errMsg"></div>
+
+  <div class="point-list" id="pointList"></div>
+
+  <p class="hint-text">Click a dot on the number line to remove it &nbsp;·&nbsp; Range: −6 to +6</p>
+
+</div>
+
+<script>
+'use strict';
+
+const canvas = document.getElementById('nlCanvas');
+const ctx    = canvas.getContext('2d');
+const W      = canvas.width;   // 640
+const H      = canvas.height;  // 240
+
+// ── Layout constants ──────────────────────────────────────────────────────────
+const LINE_Y   = 200;
+const MARGIN_X = 20;
+const X_STEP   = 50;              // pixels per integer unit (600px / 12 units)
+const LABEL_FS = 17;              // font size for point labels
+// Vertical centre of label at each stacking level (level 0 = closest to line)
+const LEVEL_CY = [150, 98, 46];
+
+function xForVal(v) {
+  return MARGIN_X + (v + 6) * X_STEP; // v=-6 → 20, v=6 → 620
+}
+
+// ── Colour palette ────────────────────────────────────────────────────────────
+const COLORS = [
+  '#F5A623', '#60a5fa', '#f87171', '#a78bfa',
+  '#34d399', '#fb923c', '#e879f9', '#facc15',
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let points = [];
+let idCtr  = 0;
+
+// ── Parsing ───────────────────────────────────────────────────────────────────
+// Normalise typographic minus / en-dash
+function normalise(s) {
+  return s.trim().replace(/[−–]/g, '-').replace(/\s+/g, ' ');
+}
+
+// Returns numeric value or null if invalid
+function parseValue(raw) {
+  const s = normalise(raw);
+
+  // Mixed number: "2 3/4" or "-2 3/4"
+  const mx = s.match(/^(-?\d+) (\d+)\/(\d+)$/);
+  if (mx) {
+    const w = parseInt(mx[1], 10);
+    const f = parseInt(mx[2], 10) / parseInt(mx[3], 10);
+    return w < 0 ? w - f : w + f;
+  }
+
+  // Simple fraction: "3/4" or "-3/4"
+  const fr = s.match(/^(-?)(\d+)\/(\d+)$/);
+  if (fr) {
+    const den = parseInt(fr[3], 10);
+    if (den === 0) return null;
+    const v = parseInt(fr[2], 10) / den;
+    return fr[1] === '-' ? -v : v;
+  }
+
+  // Decimal / integer: allow optional leading sign
+  if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+
+  return null;
+}
+
+// Returns a display descriptor for canvas rendering
+function parseDisplay(raw) {
+  const s = normalise(raw);
+
+  const mx = s.match(/^(-?)(\d+) (\d+)\/(\d+)$/);
+  if (mx) return { type: 'mixed',    neg: mx[1] === '-', whole: mx[2], num: mx[3], den: mx[4] };
+
+  const fr = s.match(/^(-?)(\d+)\/(\d+)$/);
+  if (fr) return { type: 'fraction', neg: fr[1] === '-', num: fr[2], den: fr[3] };
+
+  return { type: 'plain', text: s };
+}
+
+// ── Label measurement (needs ctx font set) ────────────────────────────────────
+function measureLabel(d) {
+  ctx.font = `bold ${LABEL_FS}px Segoe UI, sans-serif`;
+
+  if (d.type === 'plain') {
+    return { w: ctx.measureText(d.text).width + 2, h: LABEL_FS };
+  }
+
+  const barPad = 6;
+  if (d.type === 'fraction') {
+    const fw = Math.max(ctx.measureText(d.num).width, ctx.measureText(d.den).width) + barPad;
+    const neg = d.neg ? ctx.measureText('−').width + 2 : 0;
+    return { w: neg + fw, h: LABEL_FS * 2 + 4 };
+  }
+
+  if (d.type === 'mixed') {
+    const ww  = ctx.measureText(d.whole).width + 4;
+    const fw  = Math.max(ctx.measureText(d.num).width, ctx.measureText(d.den).width) + barPad;
+    const neg = d.neg ? ctx.measureText('−').width + 2 : 0;
+    return { w: neg + ww + fw, h: LABEL_FS * 2 + 4 };
+  }
+}
+
+// ── Draw a stacked label centred at (cx, cy) ─────────────────────────────────
+function drawLabel(d, cx, cy, color) {
+  ctx.font      = `bold ${LABEL_FS}px Segoe UI, sans-serif`;
+  ctx.fillStyle = color;
+
+  if (d.type === 'plain') {
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(d.text, cx, cy);
+    return;
+  }
+
+  // Compute total width so we can left-align sub-parts from the centred anchor
+  const m      = measureLabel(d);
+  let xCursor  = cx - m.w / 2;
+
+  if (d.neg) {
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('−', xCursor, cy);
+    xCursor += ctx.measureText('−').width + 2;
+  }
+
+  if (d.type === 'mixed') {
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(d.whole, xCursor, cy);
+    xCursor += ctx.measureText(d.whole).width + 4;
+  }
+
+  // Fraction part
+  const nw  = ctx.measureText(d.num).width;
+  const dw  = ctx.measureText(d.den).width;
+  const fw  = Math.max(nw, dw) + 6;
+  const fcx = xCursor + fw / 2;
+  const barY = cy;
+
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(d.num, fcx, barY - 2);         // numerator above bar
+  ctx.fillRect(xCursor, barY, fw, 1.5);       // bar
+  ctx.textBaseline = 'top';
+  ctx.fillText(d.den, fcx, barY + 2);         // denominator below bar
+}
+
+// ── Assign stacking levels to avoid horizontal label overlap ──────────────────
+function assignLevels(pts) {
+  // Sort left-to-right so greedy assignment works well
+  const sorted = [...pts].sort((a, b) => a.value - b.value);
+  const occupied = LEVEL_CY.map(() => []); // array of {left, right} per level
+  const result   = new Map();
+
+  ctx.font = `bold ${LABEL_FS}px Segoe UI, sans-serif`;
+
+  for (const pt of sorted) {
+    const { w }  = measureLabel(pt.display);
+    const px     = xForVal(pt.value);
+    const lLeft  = px - w / 2 - 6;
+    const lRight = px + w / 2 + 6;
+
+    let placed = false;
+    for (let lvl = 0; lvl < LEVEL_CY.length; lvl++) {
+      const overlaps = occupied[lvl].some(b => lLeft < b.right && b.left < lRight);
+      if (!overlaps) {
+        occupied[lvl].push({ left: lLeft, right: lRight });
+        result.set(pt.id, lvl);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) result.set(pt.id, LEVEL_CY.length - 1);
+  }
+
+  return result;
+}
+
+// ── Main draw ─────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#0f1a2e';
+  ctx.beginPath(); ctx.roundRect(0, 0, W, H, 10); ctx.fill();
+
+  // Subtle dot texture
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let x = 30; x < W; x += 38)
+    for (let y = 30; y < H; y += 38) {
+      ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+  // ── Number line ──
+  const lineL = MARGIN_X - 6;
+  const lineR = W - MARGIN_X + 6;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth   = 4;
+  ctx.beginPath(); ctx.moveTo(lineL, LINE_Y); ctx.lineTo(lineR, LINE_Y); ctx.stroke();
+
+  // Arrowheads (pointing outward on both ends)
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath(); // right
+  ctx.moveTo(lineR + 10, LINE_Y);
+  ctx.lineTo(lineR,      LINE_Y - 6);
+  ctx.lineTo(lineR,      LINE_Y + 6);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath(); // left
+  ctx.moveTo(lineL - 10, LINE_Y);
+  ctx.lineTo(lineL,      LINE_Y - 6);
+  ctx.lineTo(lineL,      LINE_Y + 6);
+  ctx.closePath(); ctx.fill();
+
+  // ── Tick marks and integer labels ──
+  ctx.lineWidth    = 1;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'top';
+
+  for (let v = -6; v <= 6; v++) {
+    const x      = xForVal(v);
+    const isMaj  = v % 2 === 0;
+    const tickH  = isMaj ? 10 : 6;
+
+    ctx.strokeStyle = isMaj ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(x, LINE_Y - tickH); ctx.lineTo(x, LINE_Y + tickH);
+    ctx.stroke();
+
+    // Label every integer, with emphasis at 0 and multiples of 5
+    const alpha = v === 0 ? 0.95 : isMaj ? 0.7 : 0.45;
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.font      = `${isMaj ? 'bold ' : ''}${v === 0 ? 13 : 12}px Segoe UI, sans-serif`;
+    ctx.fillText(String(v), x, LINE_Y + 14);
+  }
+
+  // ── Point labels and stalks ──
+  if (points.length > 0) {
+    const levelMap = assignLevels(points);
+
+    // Draw stalks first (behind labels and dots)
+    for (const pt of points) {
+      const px  = xForVal(pt.value);
+      const lvl = levelMap.get(pt.id) ?? 0;
+      const cy  = LEVEL_CY[lvl];
+      const { h } = measureLabel(pt.display);
+      const stalkTop = cy + h / 2 + 4;
+
+      ctx.strokeStyle = pt.color + 'aa';
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(px, LINE_Y - 11);
+      ctx.lineTo(px, stalkTop);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Draw labels
+    for (const pt of points) {
+      const px  = xForVal(pt.value);
+      const lvl = levelMap.get(pt.id) ?? 0;
+      const cy  = LEVEL_CY[lvl];
+      drawLabel(pt.display, px, cy, pt.color);
+    }
+  }
+
+  // ── Point dots (on top of everything) ──
+  for (const pt of points) {
+    const px = xForVal(pt.value);
+
+    ctx.shadowColor = pt.color;
+    ctx.shadowBlur  = 10;
+    ctx.fillStyle   = pt.color;
+    ctx.beginPath(); ctx.arc(px, LINE_Y, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur  = 0;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.arc(px, LINE_Y, 6, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+// ── Add point ─────────────────────────────────────────────────────────────────
+function addPoint() {
+  const input = document.getElementById('numInput');
+  const errEl = document.getElementById('errMsg');
+  const raw   = input.value.trim();
+
+  if (!raw) { errEl.textContent = ''; return; }
+
+  const val = parseValue(raw);
+
+  if (val === null || isNaN(val)) {
+    errEl.textContent = 'Not recognised — try: −3, 3/4, −1.5, or 2 3/4';
+    return;
+  }
+  if (val < -6 || val > 6) {
+    errEl.textContent = 'Value must be between −6 and +6';
+    return;
+  }
+
+  errEl.textContent = '';
+  points.push({
+    id:      idCtr,
+    value:   val,
+    raw,
+    display: parseDisplay(raw),
+    color:   COLORS[idCtr % COLORS.length],
+  });
+  idCtr++;
+
+  input.value = '';
+  input.focus();
+  renderChips();
+  draw();
+}
+
+// ── Remove a point by id ──────────────────────────────────────────────────────
+function removePoint(id) {
+  points = points.filter(p => p.id !== id);
+  renderChips();
+  draw();
+}
+
+// ── Clear all ─────────────────────────────────────────────────────────────────
+function clearAll() {
+  points = [];
+  renderChips();
+  draw();
+}
+
+// ── Render point chips below canvas ──────────────────────────────────────────
+function renderChips() {
+  const list = document.getElementById('pointList');
+  if (points.length === 0) { list.innerHTML = ''; return; }
+
+  list.innerHTML = points.map(pt =>
+    `<div class="point-chip">
+       <span class="chip-dot" style="background:${pt.color};color:${pt.color}"></span>
+       <span class="chip-lbl">${escHtml(pt.raw)}</span>
+       <button class="chip-del" onclick="removePoint(${pt.id})" title="Remove">×</button>
+     </div>`
+  ).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Canvas click — remove dot ─────────────────────────────────────────────────
+canvas.addEventListener('click', e => {
+  const r  = canvas.getBoundingClientRect();
+  const mx = (e.clientX - r.left) * (W / r.width);
+  const my = (e.clientY - r.top)  * (H / r.height);
+
+  for (const pt of points) {
+    const px = xForVal(pt.value);
+    if ((px - mx) ** 2 + (LINE_Y - my) ** 2 <= 10 ** 2) {
+      removePoint(pt.id);
+      return;
+    }
+  }
+});
+
+// ── Enter key submits ─────────────────────────────────────────────────────────
+document.getElementById('numInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { addPoint(); e.preventDefault(); }
+});
+
+// ── Responsive canvas ─────────────────────────────────────────────────────────
+function resizeCanvas() {
+  const maxW  = Math.min(canvas.closest('.card').offsetWidth - 48, 640);
+  const scale = maxW / 640;
+  canvas.style.width  = maxW + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+resizeCanvas();
+draw();
+</script>
+</body>
+</html>
